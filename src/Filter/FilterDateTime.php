@@ -6,41 +6,39 @@ namespace Ublaboo\DataGrid\Filter;
 
 use Nette\Forms\Container;
 
-class FilterDate extends OneColumnFilter implements IFilterDate
+class FilterDateTime extends OneColumnFilter implements IFilterDateTime
 {
 
 	/**
 	 * @var string
 	 */
-	protected $template = 'datagrid_filter_date.latte';
+	protected $template = 'datagrid_filter_datetime.latte';
 
 	/**
 	 * @var array
 	 */
-	protected $format = ['j. n. Y', 'd. m. yyyy'];
-
+	protected $format = ['j. n. Y H:i', 'dd. mm. yyyy hh:ii'];
+	
 	/**
 	 * @var string
 	 */
-	protected $type = 'date';
+	protected $type = 'datetime';
 
 	/**
 	 * @var string
 	 */
 	protected $locale = 'en';
 
-
 	public function addToFormContainer(Container $container): void
 	{
-
 		$control = $container->addText($this->key, $this->name);
 
-		$control->setAttribute('data-provide', 'datepicker')
+		$control->setAttribute('data-provide', 'datetimepicker')
 			->setAttribute('data-date-orientation', 'bottom')
 			->setAttribute('data-date-format', $this->getJsFormat())
 			->setAttribute('data-date-language', $this->getLocale())
 			->setAttribute('data-date-today-highlight', 'true')
-			->setAttribute('data-date-autoclose', 'true');
+			->setAttribute('data-date-autoclose', 'true');			
 
 		$this->addAttributes($control);
 
@@ -57,7 +55,7 @@ class FilterDate extends OneColumnFilter implements IFilterDate
 	/**
 	 * Set format for datepicker etc
 	 */
-	public function setFormat(string $phpFormat, string $jsFormat): IFilterDate
+	public function setFormat(string $phpFormat, string $jsFormat): IFilterDateTime
 	{
 		$this->format = [$phpFormat, $jsFormat];
 

@@ -6,23 +6,23 @@ namespace Ublaboo\DataGrid\Filter;
 
 use Nette\Forms\Container;
 
-class FilterDateRange extends FilterRange implements IFilterDate
+class FilterDateTimeRange extends FilterRange implements IFilterDateTime
 {
 
 	/**
 	 * @var string
 	 */
-	protected $template = 'datagrid_filter_daterange.latte';
+	protected $template = 'datagrid_filter_datetimerange.latte';
 
 	/**
 	 * @var array
 	 */
-	protected $format = ['j. n. Y', 'd. m. yyyy'];
+	protected $format = ['j. n. Y H:i', 'dd. mm. yyyy hh:ii'];
 
 	/**
 	 * @var string
 	 */
-	protected $type = 'date-range';
+	protected $type = 'datetime-range';
 
 	/**
 	 * @var string
@@ -38,7 +38,7 @@ class FilterDateRange extends FilterRange implements IFilterDate
 
 		$from = $container->addText('from', $this->name);
 
-		$from->setAttribute('data-provide', 'datepicker')
+		$from->setAttribute('data-provide', 'datetimepicker')
 			->setAttribute('data-date-orientation', 'bottom')
 			->setAttribute('data-date-format', $this->getJsFormat())
 			->setAttribute('data-date-language', $this->getLocale())
@@ -47,7 +47,7 @@ class FilterDateRange extends FilterRange implements IFilterDate
 
 		$to = $container->addText('to', $this->nameSecond);
 
-		$to->setAttribute('data-provide', 'datepicker')
+		$to->setAttribute('data-provide', 'datetimepicker')
 			->setAttribute('data-date-orientation', 'bottom')
 			->setAttribute('data-date-format', $this->getJsFormat())
 			->setAttribute('data-date-language', $this->getLocale())
@@ -83,7 +83,7 @@ class FilterDateRange extends FilterRange implements IFilterDate
 	/**
 	 * Set format for datepicker etc
 	 */
-	public function setFormat(string $phpFormat, string $jsFormat): IFilterDate
+	public function setFormat(string $phpFormat, string $jsFormat): IFilterDateTime
 	{
 		$this->format = [$phpFormat, $jsFormat];
 

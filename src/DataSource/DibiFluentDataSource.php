@@ -11,7 +11,9 @@ use Ublaboo\DataGrid\AggregationFunction\IAggregatable;
 use Ublaboo\DataGrid\AggregationFunction\IAggregationFunction;
 use Ublaboo\DataGrid\Exception\DataGridDateTimeHelperException;
 use Ublaboo\DataGrid\Filter\FilterDate;
+use Ublaboo\DataGrid\Filter\FilterDateTime;
 use Ublaboo\DataGrid\Filter\FilterDateRange;
+use Ublaboo\DataGrid\Filter\FilterDateTimeRange;
 use Ublaboo\DataGrid\Filter\FilterMultiSelect;
 use Ublaboo\DataGrid\Filter\FilterRange;
 use Ublaboo\DataGrid\Filter\FilterSelect;
@@ -135,9 +137,22 @@ class DibiFluentDataSource extends FilterableDataSource implements IDataSource, 
 		$conditions = $filter->getCondition();
 
 		try {
-			$date = DateTimeHelper::tryConvertToDateTime($conditions[$filter->getColumn()], [$filter->getPhpFormat()]);
+			$date = DateTimeHelper::tryConvertToDate($conditions[$filter->getColumn()], [$filter->getPhpFormat()]);			
+			$date->setTime(0, 0, 0);			
+			$this->dataSource->where('DATE(%n) = ?', $filter->getColumn(), $date);
+		} catch (DataGridDateTimeHelperException $ex) {
+			// ignore the invalid filter value
+		}
+	}
 
-			$this->dataSource->where('DATE(%n) = ?', $filter->getColumn(), $date->format('Y-m-d'));
+	protected function applyFilterDateTime(FilterDateTime $filter): void
+	{
+		$conditions = $filter->getCondition();
+
+		try {
+			$date = DateTimeHelper::tryConvertToDateTime($conditions[$filter->getColumn()], [$filter->getPhpFormat()]);
+			$date->setTime(0, 0, 0);
+			$this->dataSource->where('%n = ?', $filter->getColumn(), $date);
 		} catch (DataGridDateTimeHelperException $ex) {
 			// ignore the invalid filter value
 		}
@@ -156,7 +171,7 @@ class DibiFluentDataSource extends FilterableDataSource implements IDataSource, 
 				$dateFrom = DateTimeHelper::tryConvertToDateTime($valueFrom, [$filter->getPhpFormat()]);
 				$dateFrom->setTime(0, 0, 0);
 
-				$this->dataSource->where('DATE(%n) >= ?', $filter->getColumn(), $dateFrom);
+				$this->dataSource->where('%n >= ?', $filter->getColumn(), $dateFrom);
 			} catch (DataGridDateTimeHelperException $ex) {
 				// ignore the invalid filter value
 			}
@@ -167,7 +182,37 @@ class DibiFluentDataSource extends FilterableDataSource implements IDataSource, 
 				$dateTo = DateTimeHelper::tryConvertToDateTime($valueTo, [$filter->getPhpFormat()]);
 				$dateTo->setTime(23, 59, 59);
 
-				$this->dataSource->where('DATE(%n) <= ?', $filter->getColumn(), $dateTo);
+				$this->dataSource->where('%n <= ?', $filter->getColumn(), $dateTo);
+			} catch (DataGridDateTimeHelperException $ex) {
+				// ignore the invalid filter value
+			}
+		}
+	}
+
+	protected function applyFilterDateTimeRange(FilterDateTimeRange $filter): void
+	{
+		$conditions = $filter->getCondition();
+
+		$valueFrom = $conditions[$filter->getColumn()]['from'];
+		$valueTo = $conditions[$filter->getColumn()]['to'];
+
+		if ($valueFrom) {
+			try {
+				$dateFrom = DateTimeHelper::tryConvertToDateTime($valueFrom, [$filter->getPhpFormat()]);
+				//$dateFrom->setTime(0, 0, 0);
+
+				$this->dataSource->where('%n >= ?', $filter->getColumn(), $dateFrom);
+			} catch (DataGridDateTimeHelperException $ex) {
+				// ignore the invalid filter value
+			}
+		}
+
+		if ($valueTo) {
+			try {
+				$dateTo = DateTimeHelper::tryConvertToDateTime($valueTo, [$filter->getPhpFormat()]);
+				//$dateTo->setTime(23, 59, 59);
+
+				$this->dataSource->where('%n <= ?', $filter->getColumn(), $dateTo);
 			} catch (DataGridDateTimeHelperException $ex) {
 				// ignore the invalid filter value
 			}
@@ -194,13 +239,14 @@ class DibiFluentDataSource extends FilterableDataSource implements IDataSource, 
 
 	protected function applyFilterText(FilterText $filter): void
 	{
+		
 		$condition = $filter->getCondition();
 		$driver = $this->dataSource->getConnection()->getDriver();
 		$or = [];
-
+		
 		foreach ($condition as $column => $value) {
-			$column = Helpers::escape($driver, $column, \dibi::IDENTIFIER);
-
+			//$column = Helpers::escape($driver, $column, \dibi::IDENTIFIER);
+			
 			if ($filter->isExactSearch()) {
 				$this->dataSource->where("$column = %s", $value);
 

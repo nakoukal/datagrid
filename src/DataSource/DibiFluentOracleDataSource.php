@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Ublaboo\DataGrid\DataSource;
 
-use LogicException;
-use Nette\Database\Table\Selection;
-use Nette\Utils\Strings;
+use Dibi\Fluent;
+use Dibi\Helpers;
+use ReflectionClass;
+use Ublaboo\DataGrid\AggregationFunction\IAggregatable;
 use Ublaboo\DataGrid\AggregationFunction\IAggregationFunction;
 use Ublaboo\DataGrid\Exception\DataGridDateTimeHelperException;
 use Ublaboo\DataGrid\Filter\FilterDate;
@@ -20,11 +21,11 @@ use Ublaboo\DataGrid\Filter\FilterText;
 use Ublaboo\DataGrid\Utils\DateTimeHelper;
 use Ublaboo\DataGrid\Utils\Sorting;
 
-class NetteDatabaseTableDataSource extends FilterableDataSource implements IDataSource
+class DibiFluentOracleDataSource extends FilterableDataSource implements IDataSource, IAggregatable
 {
 
 	/**
-	 * @var Selection
+	 * @var Fluent
 	 */
 	protected $dataSource;
 
@@ -39,7 +40,7 @@ class NetteDatabaseTableDataSource extends FilterableDataSource implements IData
 	protected $primaryKey;
 
 
-	public function __construct(Selection $dataSource, string $primaryKey)
+	public function __construct(Fluent $dataSource, string $primaryKey)
 	{
 		$this->dataSource = $dataSource;
 		$this->primaryKey = $primaryKey;
@@ -53,30 +54,7 @@ class NetteDatabaseTableDataSource extends FilterableDataSource implements IData
 
 	public function getCount(): int
 	{
-		$dataSourceSqlBuilder = $this->dataSource->getSqlBuilder();
-
-		try {
-			$primary = $this->dataSource->getPrimary();
-
-		} catch (LogicException $e) {
-			if ($dataSourceSqlBuilder->getGroup() !== '') {
-				return $this->dataSource->count(
-					'DISTINCT ' . Strings::replace($dataSourceSqlBuilder->getGroup(), '~ (DESC|ASC)~')
-				);
-			}
-
-			return $this->dataSource->count('*');
-		}
-
-		if ($dataSourceSqlBuilder->getGroup() !== '') {
-			return $this->dataSource->count(
-				'DISTINCT ' . Strings::replace($dataSourceSqlBuilder->getGroup(), '~ (DESC|ASC)~')
-			);
-		}
-
-		return $this->dataSource->count(
-			$this->dataSource->getName() . '.' . (is_array($primary) ? reset($primary) : $primary)
-		);
+		return $this->dataSource->count();
 	}
 
 
@@ -85,9 +63,7 @@ class NetteDatabaseTableDataSource extends FilterableDataSource implements IData
 	 */
 	public function getData(): array
 	{
-		return $this->data !== []
-			? $this->data
-			: $this->dataSource->fetchAll();
+		return $this->data !== [] ? $this->data : $this->dataSource->fetchAll();
 	}
 
 
@@ -102,13 +78,11 @@ class NetteDatabaseTableDataSource extends FilterableDataSource implements IData
 	}
 
 
-	/**
-	 * @phpstan-param positive-int|0 $offset
-	 * @phpstan-param positive-int|0 $limit
-	 */
 	public function limit(int $offset, int $limit): IDataSource
 	{
-		$this->data = $this->dataSource->limit($limit, $offset)->fetchAll();
+		$this->dataSource->limit($limit)->offset($offset);
+
+		$this->data = $this->dataSource->fetchAll();
 
 		return $this;
 	}
@@ -129,17 +103,22 @@ class NetteDatabaseTableDataSource extends FilterableDataSource implements IData
 		$sort = $sorting->getSort();
 
 		if ($sort !== []) {
-			$this->dataSource->getSqlBuilder()->setOrder([], []);
-
-			foreach ($sort as $column => $order) {
-				$this->dataSource->order("$column $order");
-			}
+			$this->dataSource->removeClause('ORDER BY');
+			$this->dataSource->orderBy($sort);
 		} else {
 			/**
 			 * Has the statement already a order by clause?
 			 */
-			if ($this->dataSource->getSqlBuilder()->getOrder() === []) {
-				$this->dataSource->order($this->primaryKey);
+			$this->dataSource->clause('ORDER BY');
+
+			$reflection = new ReflectionClass(Fluent::class);
+
+			$cursorProperty = $reflection->getProperty('cursor');
+			$cursorProperty->setAccessible(true);
+			$cursor = $cursorProperty->getValue($this->dataSource);
+
+			if (!(bool) $cursor) {
+				$this->dataSource->orderBy($this->primaryKey);
 			}
 		}
 
@@ -158,9 +137,9 @@ class NetteDatabaseTableDataSource extends FilterableDataSource implements IData
 		$conditions = $filter->getCondition();
 
 		try {
-			$date = DateTimeHelper::tryConvertToDateTime($conditions[$filter->getColumn()], [$filter->getPhpFormat()]);
-
-			$this->dataSource->where("DATE({$filter->getColumn()}) = ?", $date->format('Y-m-d'));
+			$date = DateTimeHelper::tryConvertToDate($conditions[$filter->getColumn()], [$filter->getPhpFormat()]);			
+			$date->setTime(0, 0, 0);			
+			$this->dataSource->where('TRUNC(%n) = ?', $filter->getColumn(), $date);
 		} catch (DataGridDateTimeHelperException $ex) {
 			// ignore the invalid filter value
 		}
@@ -172,8 +151,8 @@ class NetteDatabaseTableDataSource extends FilterableDataSource implements IData
 
 		try {
 			$date = DateTimeHelper::tryConvertToDateTime($conditions[$filter->getColumn()], [$filter->getPhpFormat()]);
-
-			$this->dataSource->where("{$filter->getColumn()} = ?", $date->format('Y-m-d H:i'));
+			$date->setTime(0, 0, 0);
+			$this->dataSource->where('%n = ?', $filter->getColumn(), $date);
 		} catch (DataGridDateTimeHelperException $ex) {
 			// ignore the invalid filter value
 		}
@@ -192,10 +171,7 @@ class NetteDatabaseTableDataSource extends FilterableDataSource implements IData
 				$dateFrom = DateTimeHelper::tryConvertToDateTime($valueFrom, [$filter->getPhpFormat()]);
 				$dateFrom->setTime(0, 0, 0);
 
-				$this->dataSource->where(
-					"DATE({$filter->getColumn()}) >= ?",
-					$dateFrom->format('Y-m-d')
-				);
+				$this->dataSource->where('%n >= ?', $filter->getColumn(), $dateFrom);
 			} catch (DataGridDateTimeHelperException $ex) {
 				// ignore the invalid filter value
 			}
@@ -206,7 +182,7 @@ class NetteDatabaseTableDataSource extends FilterableDataSource implements IData
 				$dateTo = DateTimeHelper::tryConvertToDateTime($valueTo, [$filter->getPhpFormat()]);
 				$dateTo->setTime(23, 59, 59);
 
-				$this->dataSource->where("DATE({$filter->getColumn()}) <= ?", $dateTo->format('Y-m-d'));
+				$this->dataSource->where('%n <= ?', $filter->getColumn(), $dateTo);
 			} catch (DataGridDateTimeHelperException $ex) {
 				// ignore the invalid filter value
 			}
@@ -225,10 +201,7 @@ class NetteDatabaseTableDataSource extends FilterableDataSource implements IData
 				$dateFrom = DateTimeHelper::tryConvertToDateTime($valueFrom, [$filter->getPhpFormat()]);
 				//$dateFrom->setTime(0, 0, 0);
 
-				$this->dataSource->where(
-					"{$filter->getColumn()} >= ?",
-					$dateFrom->format('Y-m-d H:i')
-				);
+				$this->dataSource->where('%n >= ?', $filter->getColumn(), $dateFrom);
 			} catch (DataGridDateTimeHelperException $ex) {
 				// ignore the invalid filter value
 			}
@@ -239,7 +212,7 @@ class NetteDatabaseTableDataSource extends FilterableDataSource implements IData
 				$dateTo = DateTimeHelper::tryConvertToDateTime($valueTo, [$filter->getPhpFormat()]);
 				//$dateTo->setTime(23, 59, 59);
 
-				$this->dataSource->where("{$filter->getColumn()} <= ?", $dateTo->format('Y-m-d H:i'));
+				$this->dataSource->where('%n <= ?', $filter->getColumn(), $dateTo);
 			} catch (DataGridDateTimeHelperException $ex) {
 				// ignore the invalid filter value
 			}
@@ -254,57 +227,43 @@ class NetteDatabaseTableDataSource extends FilterableDataSource implements IData
 		$valueFrom = $conditions[$filter->getColumn()]['from'];
 		$valueTo = $conditions[$filter->getColumn()]['to'];
 
-		if ($valueFrom) {
-			$this->dataSource->where("{$filter->getColumn()} >= ?", $valueFrom);
+		if ($valueFrom || $valueFrom !== '') {
+			$this->dataSource->where('%n >= ?', $filter->getColumn(), $valueFrom);
 		}
 
-		if ($valueTo) {
-			$this->dataSource->where("{$filter->getColumn()} <= ?", $valueTo);
+		if ($valueTo || $valueTo !== '') {
+			$this->dataSource->where('%n <= ?', $filter->getColumn(), $valueTo);
 		}
 	}
 
 
 	protected function applyFilterText(FilterText $filter): void
 	{
-		$or = [];
-		$args = [];
-		$bigOr = '(';
-		$bigOrArgs = [];
+		
 		$condition = $filter->getCondition();
-
+		$driver = $this->dataSource->getConnection()->getDriver();
+		$or = [];
+		
 		foreach ($condition as $column => $value) {
-			$like = '(';
-			$args = [];
-
+			//$column = Helpers::escape($driver, $column, \dibi::IDENTIFIER);
+			
 			if ($filter->isExactSearch()) {
-				$like .= "$column = ? OR ";
-				$args[] = "$value";
-			} else {
-				$words = $filter->hasSplitWordsSearch() === false ? [$value] : explode(' ', $value);
+				$this->dataSource->where("$column = %s", $value);
 
-				foreach ($words as $word) {
-					$like .= "$column LIKE ? OR ";
-					$args[] = "%$word%";
-				}
+				continue;
 			}
 
-			$like = substr($like, 0, strlen($like) - 4) . ')';
+			$words = $filter->hasSplitWordsSearch() === false ? [$value] : explode(' ', $value);
 
-			$or[] = $like;
-			$bigOr .= "$like OR ";
-			$bigOrArgs = array_merge($bigOrArgs, $args);
+			foreach ($words as $word) {
+				$or[] = ["$column LIKE %~like~", $word];
+			}
 		}
 
 		if (sizeof($or) > 1) {
-			$bigOr = substr($bigOr, 0, strlen($bigOr) - 4) . ')';
-
-			$query = array_merge([$bigOr], $bigOrArgs);
-
-			call_user_func_array([$this->dataSource, 'where'], $query);
+			$this->dataSource->where('(%or)', $or);
 		} else {
-			$query = array_merge($or, $args);
-
-			call_user_func_array([$this->dataSource, 'where'], $query);
+			$this->dataSource->where($or);
 		}
 	}
 
@@ -313,27 +272,25 @@ class NetteDatabaseTableDataSource extends FilterableDataSource implements IData
 	{
 		$condition = $filter->getCondition();
 		$values = $condition[$filter->getColumn()];
-		$or = '(';
 
 		if (sizeof($values) > 1) {
+			$value1 = array_shift($values);
 			$length = sizeof($values);
 			$i = 1;
 
-			for ($iterator = 0; $iterator < count($values); $iterator++) {
+			$this->dataSource->where('(%n = ?', $filter->getColumn(), $value1);
+
+			foreach ($values as $value) {
 				if ($i === $length) {
-					$or .= $filter->getColumn() . ' = ?)';
+					$this->dataSource->__call('or', ['%n = ?)', $filter->getColumn(), $value]);
 				} else {
-					$or .= $filter->getColumn() . ' = ? OR ';
+					$this->dataSource->__call('or', ['%n = ?', $filter->getColumn(), $value]);
 				}
 
 				$i++;
 			}
-
-			array_unshift($values, $or);
-
-			call_user_func_array([$this->dataSource, 'where'], $values);
 		} else {
-			$this->dataSource->where($filter->getColumn() . ' = ?', reset($values));
+			$this->dataSource->where('%n = ?', $filter->getColumn(), reset($values));
 		}
 	}
 
