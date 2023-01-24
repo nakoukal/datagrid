@@ -70,10 +70,11 @@
 				<thead n:block="header">
 					{var $name = 'messages.'.trim(mb_substr($control->getName(),0,-4))}
 					<tr class="row-group-actions" n:if="$hasGroupActions || $exports || $toolbarButtons || $control->canHideColumns() || $inlineAdd" n:block="group-actions">
-						<th colspan="{$control->getColumnsCount()}" class="ublaboo-datagrid-th-form-inline"><span class="datagrid-name" n:if="$control->getName()">{=$name|translate|upper}</span>					
+						<th colspan="{$control->getColumnsCount()}" class="ublaboo-datagrid-th-form-inline">
+						<span class="datagrid-name" n:if="$control->getName()">{=$name|translate|upper}</span>					
 							{if $hasGroupActions}
 								{block group_actions}
-									<span class="datagrid-group-action-title">
+									|<span class="datagrid-group-action-title">
 										{='ublaboo_datagrid.group_actions'|translate}:
 									</span>
 									{foreach $filter['group_action']->getControls() as $form_control}
