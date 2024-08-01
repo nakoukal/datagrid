@@ -1,6 +1,4 @@
-<?php
-
-declare(strict_types=1);
+<?php declare(strict_types = 1);
 
 /**
  * Nette Framework Extras
@@ -12,72 +10,40 @@ declare(strict_types=1);
  * @link http://addons.nette.org
  */
 
-namespace Ublaboo\DataGrid\Components\DataGridPaginator;
+namespace Contributte\Datagrid\Components\DatagridPaginator;
 
+use Contributte\Datagrid\Datagrid;
 use Nette\Application\UI\Control;
 use Nette\Bridges\ApplicationLatte\Template;
-use Nette\Localization\ITranslator;
+use Nette\Localization\Translator;
 use Nette\Utils\Paginator;
-use Ublaboo\DataGrid\DataGrid;
 use UnexpectedValueException;
 
-class DataGridPaginator extends Control
+class DatagridPaginator extends Control
 {
 
-	/**
-	 * @var ITranslator
-	 */
-	private $translator;
+	private ?Paginator $paginator = null;
 
-	/**
-	 * @var string
-	 */
-	private $iconPrefix;
+	private ?string $templateFile = null;
 
-	/**
-	 * @var string
-	 */
-	private $btnSecondaryClass;
-
-	/**
-	 * @var Paginator
-	 */
-	private $paginator;
-
-	/**
-	 * @var string|null
-	 */
-	private $templateFile;
-
-
-	public function __construct(
-		ITranslator $translator,
-		string $iconPrefix = 'fa fa-',
-		string $btnSecondaryClass = 'btn-default btn-secondary'
-	) {
-		$this->translator = $translator;
-		$this->iconPrefix = $iconPrefix;
-		$this->btnSecondaryClass = $btnSecondaryClass;
+	public function __construct(private Translator $translator, private string $iconPrefix = 'fa fa-', private string $btnSecondaryClass = 'btn-default btn-secondary')
+	{
 	}
-
 
 	public function setTemplateFile(string $templateFile): void
 	{
 		$this->templateFile = $templateFile;
 	}
 
-
 	public function getTemplateFile(): string
 	{
 		return $this->templateFile ?? __DIR__ . '/templates/data_grid_paginator.latte';
 	}
 
-
 	public function getOriginalTemplateFile(): string
 	{
 		return __DIR__ . '/templates/data_grid_paginator.latte';
 	}
-
 
 	public function getPaginator(): Paginator
 	{
@@ -87,7 +53,6 @@ class DataGridPaginator extends Control
 
 		return $this->paginator;
 	}
-
 
 	public function render(): void
 	{
@@ -101,10 +66,8 @@ class DataGridPaginator extends Control
 			$arr = range(max($paginator->firstPage, $page - 2), (int) min($paginator->lastPage, $page + 2));
 
 			/**
-			 * Something to do with steps in tempale...
+			 * Something to do with steps in template...
 			 * [Default $count = 3;]
-			 *
-			 * @var int
 			 */
 			$count = 1;
 
@@ -141,7 +104,6 @@ class DataGridPaginator extends Control
 		$this->getTemplate()->render();
 	}
 
-
 	/**
 	 * Loads state informations.
 	 */
@@ -149,8 +111,9 @@ class DataGridPaginator extends Control
 	{
 		parent::loadState($params);
 
-		if ($this->getParent() instanceof DataGrid) {
+		if ($this->getParent() instanceof Datagrid) {
 			$this->getPaginator()->page = $this->getParent()->page;
 		}
 	}
+
 }

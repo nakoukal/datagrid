@@ -1,10 +1,8 @@
-<?php
+<?php declare(strict_types = 1);
 
-declare(strict_types=1);
+namespace Contributte\Datagrid\Exception;
 
-namespace Ublaboo\DataGrid\Exception;
-
-class DataGridFilterNotFoundException extends DataGridException
+class DatagridFilterNotFoundException extends DatagridException
 {
 
 }

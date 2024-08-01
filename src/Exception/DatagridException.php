@@ -1,12 +1,10 @@
-<?php
+<?php declare(strict_types = 1);
 
-declare(strict_types=1);
-
-namespace Ublaboo\DataGrid\Exception;
+namespace Contributte\Datagrid\Exception;
 
 use Exception;
 
-class DataGridException extends Exception
+class DatagridException extends Exception
 {
 
 }

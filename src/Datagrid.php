@@ -44,15 +44,12 @@ use Ublaboo\DataGrid\Export\Export;
 use Ublaboo\DataGrid\Export\ExportCsv;
 use Ublaboo\DataGrid\Filter\Filter;
 use Ublaboo\DataGrid\Filter\FilterDate;
-use Ublaboo\DataGrid\Filter\FilterDateTime;
 use Ublaboo\DataGrid\Filter\FilterDateRange;
-use Ublaboo\DataGrid\Filter\FilterDateTimeRange;
 use Ublaboo\DataGrid\Filter\FilterMultiSelect;
 use Ublaboo\DataGrid\Filter\FilterRange;
 use Ublaboo\DataGrid\Filter\FilterSelect;
 use Ublaboo\DataGrid\Filter\FilterText;
 use Ublaboo\DataGrid\Filter\IFilterDate;
-use Ublaboo\DataGrid\Filter\IFilterDateTime;
 use Ublaboo\DataGrid\Filter\SubmitButton;
 use Ublaboo\DataGrid\GroupAction\GroupAction;
 use Ublaboo\DataGrid\GroupAction\GroupActionCollection;
@@ -441,11 +438,6 @@ class DataGrid extends Control
 	 * @var string|null
 	 */
 	private $componentFullName;
-
-	/**
-	 * @var string|null
-	 */
-	private $datagridName = null;
 
 
 	public function __construct(?IContainer $parent = null, ?string $name = null)
@@ -1140,24 +1132,7 @@ class DataGrid extends Control
 
 		$this->addFilterCheck($key);
 
-		$filterDate = new FilterDate($this, $key, $name, $column);		
-		
-		$filterDate->setlocale($this->getTranslator()->getLocale());
-
-		return $this->filters[$key] = $filterDate;
-	}
-	
-	public function addFilterDateTime(string $key, string $name, ?string $column = null): FilterDateTime
-	{
-		$column = $column ?? $key;
-
-		$this->addFilterCheck($key);
-
-		$filterDateTime = new FilterDateTime($this, $key, $name, $column);
-
-		$filterDateTime->setlocale($this->getTranslator()->getLocale());
-
-		return $this->filters[$key] = $filterDateTime;
+		return $this->filters[$key] = new FilterDate($this, $key, $name, $column);
 	}
 
 
@@ -1190,33 +1165,9 @@ class DataGrid extends Control
 
 		$this->addFilterCheck($key);
 
-		$filterDateRange = new FilterDateRange($this, $key, $name, $column, $nameSecond);
-
-		$filterDateRange->setlocale($this->getTranslator()->getLocale());
-
-		return $this->filters[$key] = $filterDateRange;
+		return $this->filters[$key] = new FilterDateRange($this, $key, $name, $column, $nameSecond);
 	}
 
-	/**
-	 * @throws DataGridException
-	 */
-	public function addFilterDateTimeRange(
-		string $key,
-		string $name,
-		?string $column = null,
-		string $nameSecond = '-'
-	): FilterDateTimeRange
-	{
-		$column = $column ?? $key;
-
-		$this->addFilterCheck($key);
-
-		$filterDateTimeRange = new FilterDateTimeRange($this, $key, $name, $column, $nameSecond);
-
-		$filterDateTimeRange->setlocale($this->getTranslator()->getLocale());
-
-		return $this->filters[$key] = $filterDateTimeRange;
-	}
 
 
 
@@ -1352,7 +1303,7 @@ class DataGrid extends Control
 				);
 			}
 
-			if ($filter instanceof FilterRange || $filter instanceof FilterDateRange || $filter instanceof FilterDateTimeRange) {
+			if ($filter instanceof FilterRange || $filter instanceof FilterDateRange) {
 				if (!is_array($value)) {
 					throw new DataGridException(
 						sprintf('Default value of filter [%s] - Range/DateRange has to be an array [from/to => ...]', $key)
@@ -1371,7 +1322,6 @@ class DataGrid extends Control
 					);
 				}
 			}
-			
 		}
 
 		$this->defaultFilter = $defaultFilter;
@@ -1523,11 +1473,7 @@ class DataGrid extends Control
 				if ($filter instanceof IFilterDate) {
 					$value = $value->format($filter->getPhpFormat());
 				}
-
-				if ($filter instanceof IFilterDateTime) {
-					$value = $value->format($filter->getPhpFormat());
-				}
-			}			
+			}
 
 			try {
 				if (!$control instanceof IControl) {
