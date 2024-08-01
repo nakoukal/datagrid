@@ -445,7 +445,7 @@ class DataGrid extends Control
 	/**
 	 * @var string|null
 	 */
-	private $datagridName = null;
+	private $datagridName = "";
 
 
 	public function __construct(?IContainer $parent = null, ?string $name = null)
@@ -624,6 +624,17 @@ class DataGrid extends Control
 		$this->rowCallback = $callback;
 
 		return $this;
+	}
+
+
+	public function setDataGridName(string $name): void
+	{
+		$this->datagridName = $name;
+	}
+
+	public function getDataGridName(): string
+	{
+		return $this->datagridName;
 	}
 
 
