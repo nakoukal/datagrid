@@ -2953,9 +2953,9 @@ class DataGrid extends Control
 	 *
 	 * @return static
 	 */
-	public function setColumnsHideable(): self
+	public function setColumnsHideable(bool $columnsHideable = true): self
 	{
-		$this->canHideColumns = true;
+		$this->canHideColumns = $columnsHideable;
 
 		return $this;
 	}
